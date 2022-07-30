@@ -13,19 +13,12 @@ def index(request):
 
     with open(file_path, 'r') as json_file:
         data = json.load(json_file)
-        for k, v in data.items():
-            currency_data.append({'name': k, 'value': v})
-
+        currency_data.extend({'name': k, 'value': v} for k, v in data.items())
     exists = UserPreference.objects.filter(user=request.user).exists()
     user_preferences = None
     if exists:
         user_preferences = UserPreference.objects.get(user=request.user)
-    if request.method == 'GET':
-
-        return render(request, 'preferences/index.html', {'currencies': currency_data,
-                                                          'user_preferences': user_preferences})
-    else:
-
+    if request.method != 'GET':
         currency = request.POST['currency']
         if exists:
             user_preferences.currency = currency
@@ -33,4 +26,5 @@ def index(request):
         else:
             UserPreference.objects.create(user=request.user, currency=currency)
         messages.success(request, 'Changes saved')
-        return render(request, 'preferences/index.html', {'currencies': currency_data, 'user_preferences': user_preferences})
+    return render(request, 'preferences/index.html', {'currencies': currency_data,
+                                                      'user_preferences': user_preferences})

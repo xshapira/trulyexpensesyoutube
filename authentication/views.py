@@ -61,40 +61,45 @@ class RegistrationView(View):
             'fieldValues': request.POST
         }
 
-        if not User.objects.filter(username=username).exists():
-            if not User.objects.filter(email=email).exists():
-                if len(password) < 6:
-                    messages.error(request, 'Password too short')
-                    return render(request, 'authentication/register.html', context)
+        if (
+            not User.objects.filter(username=username).exists()
+            and not User.objects.filter(email=email).exists()
+        ):
+            if len(password) < 6:
+                messages.error(request, 'Password too short')
+                return render(request, 'authentication/register.html', context)
 
-                user = User.objects.create_user(username=username, email=email)
-                user.set_password(password)
-                user.is_active = False
-                user.save()
-                current_site = get_current_site(request)
-                email_body = {
-                    'user': user,
-                    'domain': current_site.domain,
-                    'uid': urlsafe_base64_encode(force_bytes(user.pk)),
-                    'token': account_activation_token.make_token(user),
-                }
+            user = User.objects.create_user(username=username, email=email)
+            user.set_password(password)
+            user.is_active = False
+            user.save()
+            current_site = get_current_site(request)
+            email_body = {
+                'user': user,
+                'domain': current_site.domain,
+                'uid': urlsafe_base64_encode(force_bytes(user.pk)),
+                'token': account_activation_token.make_token(user),
+            }
 
-                link = reverse('activate', kwargs={
-                               'uidb64': email_body['uid'], 'token': email_body['token']})
+            link = reverse('activate', kwargs={
+                           'uidb64': email_body['uid'], 'token': email_body['token']})
 
-                email_subject = 'Activate your account'
+            email_subject = 'Activate your account'
 
-                activate_url = 'http://'+current_site.domain+link
+            activate_url = f'http://{current_site.domain}{link}'
 
-                email = EmailMessage(
-                    email_subject,
-                    'Hi '+user.username + ', Please the link below to activate your account \n'+activate_url,
-                    'noreply@semycolon.com',
-                    [email],
-                )
-                email.send(fail_silently=False)
-                messages.success(request, 'Account successfully created')
-                return render(request, 'authentication/register.html')
+            email = EmailMessage(
+                email_subject,
+                f'Hi {user.username}'
+                + ', Please the link below to activate your account \n'
+                + activate_url,
+                'noreply@semycolon.com',
+                [email],
+            )
+
+            email.send(fail_silently=False)
+            messages.success(request, 'Account successfully created')
+            return render(request, 'authentication/register.html')
 
         return render(request, 'authentication/register.html')
 
@@ -131,9 +136,7 @@ class LoginView(View):
         password = request.POST['password']
 
         if username and password:
-            user = auth.authenticate(username=username, password=password)
-
-            if user:
+            if user := auth.authenticate(username=username, password=password):
                 if user.is_active:
                     auth.login(request, user)
                     messages.success(request, 'Welcome, ' +
